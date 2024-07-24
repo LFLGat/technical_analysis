@@ -48,8 +48,9 @@ def fetch_data(ticker, start_date, end_date, interval):
 async def read_form(request: Request):
     return templates.TemplateResponse("form.html", {"request": request})
 
-@app.post("/plot/", response_class=JSONResponse)
+@app.post("/plot/", response_class=HTMLResponse)
 async def plot_significant_levels(
+    request: Request,
     stock_ticker: str = Form(...),
     start_date: str = Form(...),
     end_date: str = Form(...)
