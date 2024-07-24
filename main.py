@@ -43,8 +43,8 @@ def find_significant_levels(data, prominence=2, cluster_distance_factor=0.5):
 def fetch_data(ticker, start_date, end_date, interval):
     data = yf.download(ticker, start=start_date, end=end_date, interval=interval)
     if interval == "1m":
-        # Filter to market hours only (9 AM to 4 PM)
-        data = data.between_time("09:00", "16:00")
+        # Filter to market hours only (9:30 AM to 4:00 PM)
+        data = data.between_time("09:30", "16:00")
     return data
 
 @app.get("/", response_class=HTMLResponse)
