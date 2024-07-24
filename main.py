@@ -41,7 +41,11 @@ def find_significant_levels(data, prominence=2, cluster_distance_factor=0.5):
     return significant_levels
 
 def fetch_data(ticker, start_date, end_date, interval):
-    return yf.download(ticker, start=start_date, end=end_date, interval=interval)
+    data = yf.download(ticker, start=start_date, end=end_date, interval=interval)
+    if interval == "1m":
+        # Filter to market hours only (9 AM to 4 PM)
+        data = data.between_time("09:00", "16:00")
+    return data
 
 @app.get("/", response_class=HTMLResponse)
 async def read_form(request: Request):
@@ -74,4 +78,3 @@ async def plot_significant_levels(
 
     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
     return JSONResponse(content={"graphJSON": graphJSON})
-
