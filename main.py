@@ -13,9 +13,6 @@ app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 def find_significant_levels(data, prominence=2, cluster_distance_factor=0.5):
-    if data.empty:
-        return []
-    
     highs = data['High']
     lows = data['Low']
     price_range = highs.max() - lows.min()
@@ -23,9 +20,6 @@ def find_significant_levels(data, prominence=2, cluster_distance_factor=0.5):
 
     peak_indices, _ = find_peaks(highs, prominence=prominence)
     trough_indices, _ = find_peaks(-lows, prominence=prominence)
-
-    if len(peak_indices) == 0 and len(trough_indices) == 0:
-        return []
 
     peak_levels = highs.iloc[peak_indices].values
     trough_levels = lows.iloc[trough_indices].values
@@ -50,19 +44,9 @@ def fetch_data(ticker, start_date, end_date, interval):
     data = yf.download(ticker, start=start_date, end=end_date, interval=interval)
     if interval == "1m":
         # Filter to market hours only (9:30 AM to 4:00 PM)
-        market_hours = data.between_time("09:30", "16:00")
-        return market_hours
-    return data
-
-def reindex_market_hours(data):
-    # Create a date range that only includes market hours
-    market_hours = pd.date_range(start=data.index[0].date(), end=data.index[-1].date(), freq='B') \
-                   .to_series() \
-                   .apply(lambda d: pd.date_range(start=d + pd.Timedelta(hours=9, minutes=30), end=d + pd.Timedelta(hours=16), freq='T')) \
-                   .explode()
-    
-    market_hours = market_hours[market_hours.isin(data.index)]
-    data = data.reindex(market_hours)
+        data = data.between_time("09:30", "16:00")
+        # Remove dates that fall outside market hours
+        data = data[data.index.strftime('%H:%M:%S').between('09:30:00', '16:00:00')]
     return data
 
 @app.get("/", response_class=HTMLResponse)
@@ -79,11 +63,7 @@ async def plot_significant_levels(
     if data_1m.empty:
         return JSONResponse(status_code=404, content={"message": "No data found for the given parameters."})
 
-    data_1m = reindex_market_hours(data_1m)
     significant_levels_1m = find_significant_levels(data_1m)
-
-    if not significant_levels_1m:
-        return JSONResponse(status_code=404, content={"message": "No significant levels found for the given parameters."})
 
     fig = go.Figure(data=[go.Candlestick(
         x=data_1m.index,
@@ -96,11 +76,7 @@ async def plot_significant_levels(
     for level in significant_levels_1m:
         fig.add_hline(y=level, line=dict(color='yellow', dash='dash'))
 
-    fig.update_layout(
-        title=f'{stock_ticker} Significant Levels',
-        yaxis_title='Price',
-        xaxis_title='Time'
-    )
+    fig.update_layout(title=f'{stock_ticker} Significant Levels', yaxis_title='Price', xaxis_title='Time')
 
     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
     return JSONResponse(content={"graphJSON": graphJSON})
