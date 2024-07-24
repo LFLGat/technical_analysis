@@ -45,8 +45,18 @@ def fetch_data(ticker, start_date, end_date, interval):
     if interval == "1m":
         # Filter to market hours only (9:30 AM to 4:00 PM)
         market_hours = data.between_time("09:30", "16:00")
-        market_hours.index = pd.to_datetime(market_hours.index)
         return market_hours
+    return data
+
+def reindex_market_hours(data):
+    # Create a date range that only includes market hours
+    market_hours = pd.date_range(start=data.index[0].date(), end=data.index[-1].date(), freq='B') \
+                   .to_series() \
+                   .apply(lambda d: pd.date_range(start=d + pd.Timedelta(hours=9, minutes=30), end=d + pd.Timedelta(hours=16), freq='T')) \
+                   .explode()
+    
+    market_hours = market_hours[market_hours.isin(data.index)]
+    data = data.reindex(market_hours)
     return data
 
 @app.get("/", response_class=HTMLResponse)
@@ -63,6 +73,7 @@ async def plot_significant_levels(
     if data_1m.empty:
         return JSONResponse(status_code=404, content={"message": "No data found for the given parameters."})
 
+    data_1m = reindex_market_hours(data_1m)
     significant_levels_1m = find_significant_levels(data_1m)
 
     fig = go.Figure(data=[go.Candlestick(
@@ -79,14 +90,7 @@ async def plot_significant_levels(
     fig.update_layout(
         title=f'{stock_ticker} Significant Levels',
         yaxis_title='Price',
-        xaxis_title='Time',
-        xaxis=dict(
-            tickformat='%Y-%m-%d %H:%M:%S',
-            rangebreaks=[
-                dict(bounds=["09:30", "16:00"]),
-                dict(values=["2023-12-25", "2024-01-01"])  # Add any other holidays here
-            ]
-        )
+        xaxis_title='Time'
     )
 
     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
