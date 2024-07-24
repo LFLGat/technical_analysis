@@ -45,7 +45,7 @@ def fetch_data(ticker, start_date, end_date, interval):
     if interval == "1m":
         # Filter to market hours only (9:30 AM to 4:00 PM)
         market_hours = data.between_time("09:30", "16:00")
-        market_hours.index = market_hours.index.strftime('%Y-%m-%d %H:%M:%S')
+        market_hours.index = pd.to_datetime(market_hours.index)
         return market_hours
     return data
 
@@ -76,7 +76,18 @@ async def plot_significant_levels(
     for level in significant_levels_1m:
         fig.add_hline(y=level, line=dict(color='yellow', dash='dash'))
 
-    fig.update_layout(title=f'{stock_ticker} Significant Levels', yaxis_title='Price', xaxis_title='Time')
+    fig.update_layout(
+        title=f'{stock_ticker} Significant Levels',
+        yaxis_title='Price',
+        xaxis_title='Time',
+        xaxis=dict(
+            tickformat='%Y-%m-%d %H:%M:%S',
+            rangebreaks=[
+                dict(bounds=["16:00", "09:30"]),
+                dict(values=["2023-12-25", "2024-01-01"])  # Add any other holidays here
+            ]
+        )
+    )
 
     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
     return JSONResponse(content={"graphJSON": graphJSON})
