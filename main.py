@@ -1,11 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 import yfinance as yf
 import pandas as pd
-import mplfinance as mpf
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
-from fastapi.responses import JSONResponse
+import matplotlib.pyplot as plt
+import io
+from fastapi.responses import StreamingResponse
 
 app = FastAPI()
 
@@ -48,6 +48,26 @@ def get_significant_levels(ticker: str, start_date: str, end_date: str, interval
     significant_levels = find_significant_levels(data)
     return {"significant_levels": significant_levels}
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+@app.get("/plot/")
+def plot_significant_levels(ticker: str, start_date: str, end_date: str, interval: str):
+    data = fetch_data(ticker, start_date, end_date, interval)
+    if data.empty:
+        return JSONResponse(status_code=404, content={"message": "No data found for the given parameters."})
+    significant_levels = find_significant_levels(data)
+    
+    plt.figure(figsize=(10, 6))
+    plt.plot(data['Close'], label='Close Price')
+    for level in significant_levels:
+        plt.axhline(y=level, color='r', linestyle='--', linewidth=1)
+    plt.title(f'{ticker} Significant Levels')
+    plt.xlabel('Date')
+    plt.ylabel('Price')
+    plt.legend()
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    plt.close()
+    return StreamingResponse(buf, media_type="image/png")
+
+handler = Mangum(app)
