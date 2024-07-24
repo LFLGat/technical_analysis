@@ -13,6 +13,9 @@ app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 def find_significant_levels(data, prominence=2, cluster_distance_factor=0.5):
+    if data.empty:
+        return []
+    
     highs = data['High']
     lows = data['Low']
     price_range = highs.max() - lows.min()
@@ -20,6 +23,9 @@ def find_significant_levels(data, prominence=2, cluster_distance_factor=0.5):
 
     peak_indices, _ = find_peaks(highs, prominence=prominence)
     trough_indices, _ = find_peaks(-lows, prominence=prominence)
+
+    if len(peak_indices) == 0 and len(trough_indices) == 0:
+        return []
 
     peak_levels = highs.iloc[peak_indices].values
     trough_levels = lows.iloc[trough_indices].values
@@ -75,6 +81,9 @@ async def plot_significant_levels(
 
     data_1m = reindex_market_hours(data_1m)
     significant_levels_1m = find_significant_levels(data_1m)
+
+    if not significant_levels_1m:
+        return JSONResponse(status_code=404, content={"message": "No significant levels found for the given parameters."})
 
     fig = go.Figure(data=[go.Candlestick(
         x=data_1m.index,
