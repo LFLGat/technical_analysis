@@ -42,9 +42,6 @@ def find_significant_levels(data, prominence=2, cluster_distance_factor=0.5):
 
 def fetch_data(ticker, start_date, end_date, interval):
     data = yf.download(ticker, start=start_date, end=end_date, interval=interval)
-    if interval == "1m":
-        # Filter to market hours only (9:30 AM to 4:00 PM)
-        data = data.between_time("09:30", "16:00")
     return data
 
 @app.get("/", response_class=HTMLResponse)
@@ -73,6 +70,14 @@ async def plot_significant_levels(
 
     for level in significant_levels_1m:
         fig.add_hline(y=level, line=dict(color='yellow', dash='dash'))
+
+    fig.update_xaxes(
+        rangeslider_visible=True,
+        rangebreaks=[
+            dict(bounds=["sat", "mon"]),  # Hide weekends
+            dict(bounds=[16, 9.5], pattern="hour")  # Hide hours outside 9:30am-4pm
+        ]
+    )
 
     fig.update_layout(title=f'{stock_ticker} Significant Levels', yaxis_title='Price', xaxis_title='Time')
 
