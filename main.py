@@ -55,31 +55,75 @@ async def plot_significant_levels(
     end_date: str = Form(...)
 ):
     data_1m = fetch_data(stock_ticker, start_date, end_date, "1m")
-    if data_1m.empty:
+    data_5m = fetch_data(stock_ticker, start_date, end_date, "5m")
+    data_15m = fetch_data(stock_ticker, start_date, end_date, "15m")
+    data_1h = fetch_data(stock_ticker, start_date, end_date, "1h")
+
+    if data_1m.empty or data_5m.empty or data_15m.empty or data_1h.empty:
         return JSONResponse(status_code=404, content={"message": "No data found for the given parameters."})
 
     significant_levels_1m = find_significant_levels(data_1m)
+    valid_levels = find_significant_levels(data_1m)
 
-    fig = go.Figure(data=[go.Candlestick(
+    fig1 = go.Figure(data=[go.Candlestick(
         x=data_1m.index,
         open=data_1m['Open'],
         high=data_1m['High'],
         low=data_1m['Low'],
         close=data_1m['Close']
     )])
+    fig2 = go.Figure(data=[go.Candlestick(
+        x=data_5m.index,
+        open=data_5m['Open'],
+        high=data_5m['High'],
+        low=data_5m['Low'],
+        close=data_5m['Close']
+    )])
+    fig3 = go.Figure(data=[go.Candlestick(
+        x=data_15m.index,
+        open=data_15m['Open'],
+        high=data_15m['High'],
+        low=data_15m['Low'],
+        close=data_15m['Close']
+    )])
+    fig4 = go.Figure(data=[go.Candlestick(
+        x=data_1h.index,
+        open=data_1h['Open'],
+        high=data_1h['High'],
+        low=data_1h['Low'],
+        close=data_1h['Close']
+    )])
 
     for level in significant_levels_1m:
-        fig.add_hline(y=level, line=dict(color='yellow', dash='dash'))
+        fig1.add_hline(y=level, line=dict(color='yellow', dash='dash'))
+    for level in valid_levels:
+        fig2.add_hline(y=level, line=dict(color='yellow', dash='dash'))
+        fig3.add_hline(y=level, line=dict(color='yellow', dash='dash'))
+        fig4.add_hline(y=level, line=dict(color='yellow', dash='dash'))
 
-    fig.update_xaxes(
-        rangeslider_visible=True,
-        rangebreaks=[
-            dict(bounds=["sat", "mon"]),  # Hide weekends
-            dict(bounds=[16, 9.5], pattern="hour")  # Hide hours outside 9:30am-4pm
-        ]
-    )
+    for fig in [fig1, fig2, fig3, fig4]:
+        fig.update_xaxes(
+            rangeslider_visible=True,
+            rangebreaks=[
+                dict(bounds=["sat", "mon"]),  # Hide weekends
+                dict(bounds=[16, 9.5], pattern="hour")  # Hide hours outside 9:30am-4pm
+            ]
+        )
 
-    fig.update_layout(title=f'{stock_ticker} Significant Levels', yaxis_title='Price', xaxis_title='Time')
+    fig1.update_layout(title=f'{stock_ticker} - 1 Minute Interval', yaxis_title='Price', xaxis_title='Time')
+    fig2.update_layout(title=f'{stock_ticker} - 5 Minute Interval', yaxis_title='Price', xaxis_title='Time')
+    fig3.update_layout(title=f'{stock_ticker} - 15 Minute Interval', yaxis_title='Price', xaxis_title='Time')
+    fig4.update_layout(title=f'{stock_ticker} - 1 Hour Interval', yaxis_title='Price', xaxis_title='Time')
 
-    graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
-    return JSONResponse(content={"graphJSON": graphJSON})
+    graphJSON1 = json.dumps(fig1, cls=plotly.utils.PlotlyJSONEncoder)
+    graphJSON2 = json.dumps(fig2, cls=plotly.utils.PlotlyJSONEncoder)
+    graphJSON3 = json.dumps(fig3, cls=plotly.utils.PlotlyJSONEncoder)
+    graphJSON4 = json.dumps(fig4, cls=plotly.utils.PlotlyJSONEncoder)
+
+    return templates.TemplateResponse("form.html", {
+        "request": request,
+        "graphJSON1": graphJSON1,
+        "graphJSON2": graphJSON2,
+        "graphJSON3": graphJSON3,
+        "graphJSON4": graphJSON4
+    })
