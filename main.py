@@ -5,7 +5,8 @@ import numpy as np
 from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 import io
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
+from mangum import Mangum
 
 app = FastAPI()
 
