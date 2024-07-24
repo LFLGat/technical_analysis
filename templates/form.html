@@ -43,6 +43,16 @@
                 alert('Failed to fetch data');
             }
         }
+
+        function updateYAxis(range) {
+            const yRange = range.split('-');
+            const layoutUpdate = { yaxis: { range: [Number(yRange[0]), Number(yRange[1])] } };
+
+            Plotly.relayout('chart1', layoutUpdate);
+            Plotly.relayout('chart2', layoutUpdate);
+            Plotly.relayout('chart3', layoutUpdate);
+            Plotly.relayout('chart4', layoutUpdate);
+        }
     </script>
 </head>
 <body>
@@ -60,6 +70,17 @@
         <input type="date" id="end_date" name="end_date" required><br><br>
         <button type="submit">Generate Significant Levels</button>
     </form>
+    <br>
+    <div>
+        <label for="y_axis_range">Y-Axis Range:</label>
+        <select id="y_axis_range" onchange="updateYAxis(this.value)">
+            <option value="200-400">200 - 400</option>
+            <option value="100-500">100 - 500</option>
+            <option value="0-600">0 - 600</option>
+            <option value="300-600">300 - 600</option>
+            <!-- Add more options as needed -->
+        </select>
+    </div>
     <br>
     <div id="trend_stock"></div>
     <div id="trend_sector"></div>
