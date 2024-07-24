@@ -48,9 +48,8 @@ def fetch_data(ticker, start_date, end_date, interval):
 async def read_form(request: Request):
     return templates.TemplateResponse("form.html", {"request": request})
 
-@app.post("/plot/", response_class=HTMLResponse)
+@app.post("/plot/", response_class=JSONResponse)
 async def plot_significant_levels(
-    request: Request,
     stock_ticker: str = Form(...),
     start_date: str = Form(...),
     end_date: str = Form(...)
@@ -121,8 +120,7 @@ async def plot_significant_levels(
     graphJSON3 = json.dumps(fig3, cls=plotly.utils.PlotlyJSONEncoder)
     graphJSON4 = json.dumps(fig4, cls=plotly.utils.PlotlyJSONEncoder)
 
-    return templates.TemplateResponse("form.html", {
-        "request": request,
+    return JSONResponse(content={
         "graphJSON1": graphJSON1,
         "graphJSON2": graphJSON2,
         "graphJSON3": graphJSON3,
