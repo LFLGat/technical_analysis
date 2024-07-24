@@ -130,8 +130,10 @@ async def plot_significant_levels(
             rangebreaks=[
                 dict(bounds=["sat", "mon"]),  # Hide weekends
                 dict(bounds=[16, 9.5], pattern="hour")  # Hide hours outside 9:30am-4pm
-            ]
+            ],
+            fixedrange=False
         )
+        fig.update_yaxes(fixedrange=False)
 
     fig1.update_layout(title=f'{stock_ticker} - 1 Minute Interval ({trend_stock})', yaxis_title='Price', xaxis_title='Time')
     fig2.update_layout(title=f'{stock_ticker} - 5 Minute Interval ({trend_stock})', yaxis_title='Price', xaxis_title='Time')
