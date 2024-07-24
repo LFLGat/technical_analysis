@@ -3,7 +3,6 @@
 <head>
     <title>Stock Analysis Form</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <script src="/static/chart.js"></script>
 </head>
 <body>
     <h1>Stock Analysis Form</h1>
@@ -23,5 +22,14 @@
     <br>
     <div id="chart" style="width:100%;height:500px;"></div>
     <input type="hidden" id="graphJSON" value="{{ graphJSON|tojson }}">
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var graphJSON = document.getElementById('graphJSON').value;
+            if (graphJSON) {
+                var graph = JSON.parse(graphJSON);
+                Plotly.newPlot('chart', graph.data, graph.layout);
+            }
+        });
+    </script>
 </body>
 </html>

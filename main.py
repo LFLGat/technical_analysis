@@ -6,12 +6,11 @@ import pandas as pd
 import numpy as np
 from scipy.signal import find_peaks
 import plotly.graph_objects as go
-from fastapi.staticfiles import StaticFiles
+import plotly.utils
 import json
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
 def find_significant_levels(data, prominence=2, cluster_distance_factor=0.5):
     highs = data['High']
@@ -46,9 +45,9 @@ def fetch_data(ticker, start_date, end_date, interval):
 
 @app.get("/", response_class=HTMLResponse)
 async def read_form(request: Request):
-    return templates.TemplateResponse("form.html", {"request": request})
+    return templates.TemplateResponse("form.html", {"request": request, "graphJSON": None})
 
-@app.post("/plot/")
+@app.post("/plot/", response_class=HTMLResponse)
 async def plot_significant_levels(
     request: Request,
     stock_ticker: str = Form(...),
@@ -80,23 +79,3 @@ async def plot_significant_levels(
 
     return templates.TemplateResponse("form.html", {"request": request, "graphJSON": graphJSON})
 
-@app.post("/trends/")
-async def plot_trends_endpoint(
-    request: Request,
-    stock_ticker: str = Form(...),
-    sector_ticker: str = Form(...),
-    index_ticker: str = Form(...),
-    start_date: str = Form(...),
-    end_date: str = Form(...)
-):
-    stock_data = fetch_data(stock_ticker, start_date, end_date, "1h")
-    sector_data = fetch_data(sector_ticker, start_date, end_date, "1h")
-    index_data = fetch_data(index_ticker, start_date, end_date, "1h")
-
-    if stock_data.empty or sector_data.empty or index_data.empty:
-        return JSONResponse(status_code=404, content={"message": "No data found for the given parameters."})
-
-    buf = plot_trends(stock_data, sector_data, index_data, stock_ticker, sector_ticker, index_ticker)
-    return StreamingResponse(buf, media_type="image/png")
-
-handler = Mangum(app)
