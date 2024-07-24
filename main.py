@@ -1,15 +1,17 @@
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Form, Request
+from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
 import yfinance as yf
 import pandas as pd
 import numpy as np
 from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
-import io
-from fastapi.responses import StreamingResponse, JSONResponse
-from mangum import Mangum
 import mplfinance as mpf
+import io
+from mangum import Mangum
 
 app = FastAPI()
+templates = Jinja2Templates(directory="templates")
 
 def find_significant_levels(data, prominence=2, cluster_distance_factor=0.5):
     highs = data['High']
@@ -89,12 +91,23 @@ def plot_trends(stock_data, sector_data, index_data, stock_ticker, sector_ticker
     plt.close()
     return buf
 
-@app.get("/plot/")
-def plot_significant_levels(ticker: str, start_date: str, end_date: str, interval: str):
-    data_1m = fetch_data(ticker, start_date, end_date, "1m")
-    data_5m = fetch_data(ticker, start_date, end_date, "5m")
-    data_15m = fetch_data(ticker, start_date, end_date, "15m")
-    data_1h = fetch_data(ticker, start_date, end_date, "1h")
+@app.get("/", response_class=HTMLResponse)
+async def read_form(request: Request):
+    return templates.TemplateResponse("form.html", {"request": request})
+
+@app.post("/plot/")
+async def plot_significant_levels(
+    request: Request,
+    stock_ticker: str = Form(...),
+    sector_ticker: str = Form(...),
+    index_ticker: str = Form(...),
+    start_date: str = Form(...),
+    end_date: str = Form(...)
+):
+    data_1m = fetch_data(stock_ticker, start_date, end_date, "1m")
+    data_5m = fetch_data(stock_ticker, start_date, end_date, "5m")
+    data_15m = fetch_data(stock_ticker, start_date, end_date, "15m")
+    data_1h = fetch_data(stock_ticker, start_date, end_date, "1h")
 
     if data_1m.empty or data_5m.empty or data_15m.empty or data_1h.empty:
         return JSONResponse(status_code=404, content={"message": "No data found for the given parameters."})
@@ -109,16 +122,16 @@ def plot_significant_levels(ticker: str, start_date: str, end_date: str, interva
     trend_15m = determine_trend(data_15m)
     trend_1h = determine_trend(data_1h)
 
-    mpf.plot(data_1m, type='candle', style='charles', axtitle=f'{ticker} - 1 Minute Interval ({trend_1m})', ylabel='Price', ax=axes[0], volume=False)
+    mpf.plot(data_1m, type='candle', style='charles', axtitle=f'{stock_ticker} - 1 Minute Interval ({trend_1m})', ylabel='Price', ax=axes[0], volume=False)
     add_horizontal_lines(axes[0], significant_levels_1m)
 
-    mpf.plot(data_5m, type='candle', style='charles', axtitle=f'{ticker} - 5 Minute Interval ({trend_5m})', ylabel='Price', ax=axes[1], volume=False)
+    mpf.plot(data_5m, type='candle', style='charles', axtitle=f'{stock_ticker} - 5 Minute Interval ({trend_5m})', ylabel='Price', ax=axes[1], volume=False)
     add_horizontal_lines(axes[1], valid_levels)
 
-    mpf.plot(data_15m, type='candle', style='charles', axtitle=f'{ticker} - 15 Minute Interval ({trend_15m})', ylabel='Price', ax=axes[2], volume=False)
+    mpf.plot(data_15m, type='candle', style='charles', axtitle=f'{stock_ticker} - 15 Minute Interval ({trend_15m})', ylabel='Price', ax=axes[2], volume=False)
     add_horizontal_lines(axes[2], valid_levels)
 
-    mpf.plot(data_1h, type='candle', style='charles', axtitle=f'{ticker} - 1 Hour Interval ({trend_1h})', ylabel='Price', ax=axes[3], volume=False)
+    mpf.plot(data_1h, type='candle', style='charles', axtitle=f'{stock_ticker} - 1 Hour Interval ({trend_1h})', ylabel='Price', ax=axes[3], volume=False)
     add_horizontal_lines(axes[3], valid_levels)
 
     plt.tight_layout()
@@ -128,8 +141,15 @@ def plot_significant_levels(ticker: str, start_date: str, end_date: str, interva
     plt.close()
     return StreamingResponse(buf, media_type="image/png")
 
-@app.get("/trends/")
-def plot_trends_endpoint(stock_ticker: str, sector_ticker: str, index_ticker: str, start_date: str, end_date: str):
+@app.post("/trends/")
+async def plot_trends_endpoint(
+    request: Request,
+    stock_ticker: str = Form(...),
+    sector_ticker: str = Form(...),
+    index_ticker: str = Form(...),
+    start_date: str = Form(...),
+    end_date: str = Form(...)
+):
     stock_data = fetch_data(stock_ticker, start_date, end_date, "1h")
     sector_data = fetch_data(sector_ticker, start_date, end_date, "1h")
     index_data = fetch_data(index_ticker, start_date, end_date, "1h")
