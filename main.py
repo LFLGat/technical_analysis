@@ -44,7 +44,9 @@ def fetch_data(ticker, start_date, end_date, interval):
     data = yf.download(ticker, start=start_date, end=end_date, interval=interval)
     if interval == "1m":
         # Filter to market hours only (9:30 AM to 4:00 PM)
-        data = data.between_time("09:30", "16:00")
+        market_hours = data.between_time("09:30", "16:00")
+        market_hours.index = market_hours.index.strftime('%Y-%m-%d %H:%M:%S')
+        return market_hours
     return data
 
 @app.get("/", response_class=HTMLResponse)
