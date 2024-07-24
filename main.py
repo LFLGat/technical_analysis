@@ -44,6 +44,14 @@ def fetch_data(ticker, start_date, end_date, interval):
     data = yf.download(ticker, start=start_date, end=end_date, interval=interval)
     return data
 
+def determine_trend(data):
+    short_ma = data['Close'].rolling(window=50).mean()
+    long_ma = data['Close'].rolling(window=200).mean()
+    if short_ma.iloc[-1] > long_ma.iloc[-1]:
+        return "Bullish"
+    else:
+        return "Bearish"
+
 @app.get("/", response_class=HTMLResponse)
 async def read_form(request: Request):
     return templates.TemplateResponse("form.html", {"request": request})
@@ -51,6 +59,8 @@ async def read_form(request: Request):
 @app.post("/plot/", response_class=JSONResponse)
 async def plot_significant_levels(
     stock_ticker: str = Form(...),
+    sector_ticker: str = Form(...),
+    index_ticker: str = Form(...),
     start_date: str = Form(...),
     end_date: str = Form(...)
 ):
@@ -59,11 +69,18 @@ async def plot_significant_levels(
     data_15m = fetch_data(stock_ticker, start_date, end_date, "15m")
     data_1h = fetch_data(stock_ticker, start_date, end_date, "1h")
 
-    if data_1m.empty or data_5m.empty or data_15m.empty or data_1h.empty:
+    data_sector = fetch_data(sector_ticker, start_date, end_date, "1d")
+    data_index = fetch_data(index_ticker, start_date, end_date, "1d")
+
+    if data_1m.empty or data_5m.empty or data_15m.empty or data_1h.empty or data_sector.empty or data_index.empty:
         return JSONResponse(status_code=404, content={"message": "No data found for the given parameters."})
 
     significant_levels_1m = find_significant_levels(data_1m)
     valid_levels = find_significant_levels(data_1m)
+
+    trend_stock = determine_trend(data_1h)
+    trend_sector = determine_trend(data_sector)
+    trend_index = determine_trend(data_index)
 
     fig1 = go.Figure(data=[go.Candlestick(
         x=data_1m.index,
@@ -94,12 +111,18 @@ async def plot_significant_levels(
         close=data_1h['Close']
     )])
 
-    for level in significant_levels_1m:
-        fig1.add_hline(y=level, line=dict(color='yellow', dash='dash'))
-    for level in valid_levels:
-        fig2.add_hline(y=level, line=dict(color='yellow', dash='dash'))
-        fig3.add_hline(y=level, line=dict(color='yellow', dash='dash'))
-        fig4.add_hline(y=level, line=dict(color='yellow', dash='dash'))
+    for fig in [fig1, fig2, fig3, fig4]:
+        for level in significant_levels_1m:
+            fig.add_hline(y=level, line=dict(color='yellow', dash='dash'))
+            fig.add_annotation(
+                x=data_1m.index[0],
+                y=level,
+                text=f'{level:.2f}',
+                showarrow=False,
+                font=dict(color='red'),
+                xshift=-10,
+                yshift=10
+            )
 
     for fig in [fig1, fig2, fig3, fig4]:
         fig.update_xaxes(
@@ -110,10 +133,10 @@ async def plot_significant_levels(
             ]
         )
 
-    fig1.update_layout(title=f'{stock_ticker} - 1 Minute Interval', yaxis_title='Price', xaxis_title='Time')
-    fig2.update_layout(title=f'{stock_ticker} - 5 Minute Interval', yaxis_title='Price', xaxis_title='Time')
-    fig3.update_layout(title=f'{stock_ticker} - 15 Minute Interval', yaxis_title='Price', xaxis_title='Time')
-    fig4.update_layout(title=f'{stock_ticker} - 1 Hour Interval', yaxis_title='Price', xaxis_title='Time')
+    fig1.update_layout(title=f'{stock_ticker} - 1 Minute Interval ({trend_stock})', yaxis_title='Price', xaxis_title='Time')
+    fig2.update_layout(title=f'{stock_ticker} - 5 Minute Interval ({trend_stock})', yaxis_title='Price', xaxis_title='Time')
+    fig3.update_layout(title=f'{stock_ticker} - 15 Minute Interval ({trend_stock})', yaxis_title='Price', xaxis_title='Time')
+    fig4.update_layout(title=f'{stock_ticker} - 1 Hour Interval ({trend_stock})', yaxis_title='Price', xaxis_title='Time')
 
     graphJSON1 = json.dumps(fig1, cls=plotly.utils.PlotlyJSONEncoder)
     graphJSON2 = json.dumps(fig2, cls=plotly.utils.PlotlyJSONEncoder)
@@ -124,5 +147,8 @@ async def plot_significant_levels(
         "graphJSON1": graphJSON1,
         "graphJSON2": graphJSON2,
         "graphJSON3": graphJSON3,
-        "graphJSON4": graphJSON4
+        "graphJSON4": graphJSON4,
+        "trend_stock": trend_stock,
+        "trend_sector": trend_sector,
+        "trend_index": trend_index
     })
