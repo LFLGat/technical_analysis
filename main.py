@@ -83,7 +83,7 @@ async def plot_significant_levels(
         xaxis=dict(
             tickformat='%Y-%m-%d %H:%M:%S',
             rangebreaks=[
-                dict(bounds=["16:00", "09:30"]),
+                dict(bounds=["09:30", "16:00"]),
                 dict(values=["2023-12-25", "2024-01-01"])  # Add any other holidays here
             ]
         )
