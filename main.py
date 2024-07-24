@@ -45,8 +45,6 @@ def fetch_data(ticker, start_date, end_date, interval):
     if interval == "1m":
         # Filter to market hours only (9:30 AM to 4:00 PM)
         data = data.between_time("09:30", "16:00")
-        # Remove dates that fall outside market hours
-        data = data[data.index.strftime('%H:%M:%S').between('09:30:00', '16:00:00')]
     return data
 
 @app.get("/", response_class=HTMLResponse)
